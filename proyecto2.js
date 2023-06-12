@@ -1,50 +1,42 @@
 import puppeteer from "puppeteer";
+import fs from "fs";
 
-async function getDataFromWebPage() {
+// const fs = require('fs'); 
+
+
+async function extraerparrafos(url) {
     const browser = await puppeteer.launch({
       headless: false,
       slowMo: 200,
     });
     const page = await browser.newPage();
-    await page.goto('https://web.archive.org/web/20070513055106/http://www.argentina-rree.com/historia_indice01.htm');
-    await page.waitForSelector('body'); 
-    let links = el => el.querySelectorAll('td > ul > li > font > a').href; 
+    await page.goto(url);
 
-    for(let index =0;index<links.length;++index){
-        await page.click('a[href]')
-        const data = await page.evaluate(() => {
-            let parrafo = document.querySelector('p').innerText;
-            return {
-             parrafo
-            }
-          });
-          console.log(data);
-          await browser.close();
-        }
-        
-       
-      }
-      getDataFromWebPage();
+    //obtiene los enlaces a archivos HTML
+    const links = await page.$$eval('a', (elements) => elements.map((el) => el.href));
+    // [href$=.htm]', 'a[href$=".html"
 
+    //Array para almacenar los párrafos 
+    const paragraphs = [];
+    //Recorre los archivos HTML y extrae los párrafos
+    for (let i=0; i <links.length; i++) {
+      const fileUrl = links[i];
+      const response = await page.goto(fileUrl);
+      const content = await response.text();
 
-//     const data = await page.evaluate(() => {
-//       const quotes = document.querySelectorAll("a");
-//       const data = [...quotes].map((quote) => {
-//         const quoteText = quote.querySelector(".text").innerText;
-//         const author = quote.querySelector(".author").innerText;
-//         const tags = [...quote.querySelectorAll(".tag")].map(
-//           (tag) => tag.innerText
-//         );
-//         return {
-//           quoteText,
-//           author,
-//           tags,
-//         };
-//       });
-//       return data;
-//     });
-//     console.log(data);
-//     await browser.close();
-//   }
-  
-//   handleDynamicWebPage();
+    //Extrae los párrafos utilizando expresiones regulares o DOM
+    const extractredParagraphs = content.match (/<p>(.*?)<\/p>/g);
+
+    //Agrega los párrafos al array 
+    paragraphs.push(...extractredParagraphs)
+
+    //Guarda los párrafos en un archivo 
+    fs.writeFileSync(`parrafos${i}`, paragraphs.join('\n'));
+
+    }
+    await browser.close();
+
+}
+
+//Llama a la función y pasa la URL de la página web
+extraerparrafos('https://web.archive.org/web/20070513055106/http://www.argentina-rree.com/historia_indice01.htm');
